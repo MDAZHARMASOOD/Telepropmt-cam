@@ -1,0 +1,8 @@
+{
+  "firestore": [
+    {
+      "database": "ai-studio-android-teleprom-d9e98485-4dc5-4560-b55f-c46a674f13a1",
+      "rules": "firestore.rules"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "User": {
+      "path": "users/{userId}",
+      "fields": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "phoneNumber": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "provider": { "type": "string" },
+        "createdAt": { "type": "timestamp" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    },
+    "UserScript": {
+      "path": "users/{userId}/scripts/{scriptId}",
+      "fields": {
+        "title": { "type": "string" },
+        "content": { "type": "string" },
+        "scrollSpeed": { "type": "number" },
+        "overlayOpacity": { "type": "number" },
+        "fontSizeSp": { "type": "number" },
+        "updatedAt": { "type": "timestamp" }
+      }
+    }
+  }
+}

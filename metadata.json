@@ -1,0 +1,6 @@
+{
+  "name": "TelePrompt",
+  "description": "Real-time teleprompter video recording studio for short-form content featuring front-camera preview, smooth auto-scrolling script, real-time video filters (Sepia, B&W, High-Contrast), makeup swipe filter, onboarding flow, multi-provider authentication (Google, Phone OTP, Apple ID, Email), video editor, and direct upload to Instagram Reels, Facebook Reels, and YouTube Shorts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
