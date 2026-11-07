@@ -155,6 +155,7 @@ fun StudioScreen(
     val recordingState by viewModel.cameraManager.recordingState.collectAsState()
     val lensFacing by viewModel.cameraManager.currentLensFacing.collectAsState()
     val selectedScript by viewModel.selectedScript.collectAsState()
+    val freestyleMode by viewModel.freestyleMode.collectAsState()
     val config by viewModel.teleprompterConfig.collectAsState()
     val allScripts by viewModel.allScripts.collectAsState()
     val showScriptPicker by viewModel.showScriptPicker.collectAsState()
@@ -612,8 +613,8 @@ fun StudioScreen(
         ) {
             TeleprompterOverlay(
                 config = config,
-                scriptTitle = selectedScript?.title ?: "Freestyle Prompter",
-                scriptText = selectedScript?.content ?: "Add or select a script below to begin reading while recording!",
+                scriptTitle = selectedScript?.title ?: if (freestyleMode) "Freestyle Prompter" else "Choose a script",
+                scriptText = selectedScript?.content ?: if (freestyleMode) "Freestyle mode · recording without a script." else "Choose a script before recording, or create or upload one from the script picker.",
                 onConfigChange = { viewModel.updateTeleprompterConfig(it) },
                 onOpenSettings = { viewModel.toggleSettingsSheet(true) }
             )
@@ -882,7 +883,7 @@ fun StudioScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = selectedScript?.title ?: "Select or Write Script",
+                            text = selectedScript?.title ?: if (freestyleMode) "Freestyle · No Script" else "Choose a Script",
                             color = TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -1013,6 +1014,8 @@ fun StudioScreen(
                                 .clickable {
                                     if (isRecording) {
                                         viewModel.stopRecording()
+                                    } else if (selectedScript == null && !freestyleMode) {
+                                        viewModel.toggleScriptPicker(true)
                                     } else {
                                         viewModel.startRecording()
                                     }
@@ -1147,58 +1150,99 @@ fun StudioScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(320.dp)
-                ) {
-                    items(allScripts) { script ->
-                        val isSelected = selectedScript?.id == script.id
-                        Card(
-                            onClick = { viewModel.selectScript(script) },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 5.dp)
+                if (allScripts.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().height(230.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "No scripts yet",
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Create or upload a script to read while you record.",
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Button(
+                            onClick = {
+                                viewModel.toggleScriptPicker(false)
+                                onNavigateToScripts()
+                            },
+                            shape = RoundedCornerShape(9999.dp)
                         ) {
-                            Row(
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Create your first script", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(320.dp)
+                    ) {
+                        items(allScripts) { script ->
+                            val isSelected = selectedScript?.id == script.id
+                            Card(
+                                onClick = { viewModel.selectScript(script) },
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.surfaceContainerLow
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(
+                                    1.dp,
+                                    if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.primary else androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
+                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .padding(vertical = 5.dp)
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = script.title,
-                                        color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "${script.wordCount} words • ~${script.estimatedDurationSec}s estimated",
-                                        color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontSize = 12.sp
-                                    )
-                                }
-                                if (isSelected) {
-                                    Icon(
-                                        imageVector = Icons.Default.Check,
-                                        contentDescription = "Selected",
-                                        tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
-                                    )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = script.title,
+                                            color = if (isSelected) androidx.compose.material3.MaterialTheme.colorScheme.onPrimaryContainer else androidx.compose.material3.MaterialTheme.colorScheme.onSurface,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "${script.wordCount} words • ~${script.estimatedDurationSec}s estimated",
+                                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = "Selected",
+                                            tint = androidx.compose.material3.MaterialTheme.colorScheme.primary
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+                }
+
+                TextButton(
+                    onClick = { viewModel.continueWithoutScript() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Continue without a script")
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

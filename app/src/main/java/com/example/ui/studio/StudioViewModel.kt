@@ -34,6 +34,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
     private val _selectedScript = MutableStateFlow<Script?>(null)
     val selectedScript: StateFlow<Script?> = _selectedScript.asStateFlow()
 
+    private val _freestyleMode = MutableStateFlow(false)
+    val freestyleMode: StateFlow<Boolean> = _freestyleMode.asStateFlow()
+
     private val _teleprompterConfig = MutableStateFlow(TeleprompterConfig())
     val teleprompterConfig: StateFlow<TeleprompterConfig> = _teleprompterConfig.asStateFlow()
 
@@ -110,19 +113,9 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    init {
-        // Load first available script by default once scripts are loaded
-        viewModelScope.launch {
-            allScripts.collect { scripts ->
-                if (_selectedScript.value == null && scripts.isNotEmpty()) {
-                    selectScript(scripts.first())
-                }
-            }
-        }
-    }
-
     fun selectScript(script: Script) {
         _selectedScript.value = script
+        _freestyleMode.value = false
         _teleprompterConfig.value = _teleprompterConfig.value.copy(
             scrollSpeed = script.scrollSpeed,
             overlayOpacity = script.overlayOpacity,
@@ -131,6 +124,12 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
             textAlign = script.textAlign,
             isAutoScrollActive = false
         )
+        _showScriptPicker.value = false
+    }
+
+    fun continueWithoutScript() {
+        _selectedScript.value = null
+        _freestyleMode.value = true
         _showScriptPicker.value = false
     }
 
@@ -232,8 +231,8 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
         viewModelScope.launch {
             scriptDao.deleteScript(script)
             if (_selectedScript.value?.id == script.id) {
-                val remaining = allScripts.value.filter { it.id != script.id }
-                _selectedScript.value = remaining.firstOrNull()
+                _selectedScript.value = null
+                _freestyleMode.value = false
             }
         }
     }
