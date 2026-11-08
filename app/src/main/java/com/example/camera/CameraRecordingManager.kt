@@ -7,7 +7,10 @@ import android.content.pm.PackageManager
 import android.os.Environment
 import android.util.Log
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.UseCase
+import androidx.camera.core.UseCaseGroup
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.video.FallbackStrategy
 import androidx.camera.video.FileOutputOptions
@@ -48,6 +51,9 @@ class CameraRecordingManager(
     private val tag = "CameraRecordingManager"
 
     private var cameraProvider: ProcessCameraProvider? = null
+    private var boundLifecycleOwner: LifecycleOwner? = null
+    private var boundPreviewView: PreviewView? = null
+    private val avatarEffect = AvatarCameraEffect()
     private var videoCapture: VideoCapture<Recorder>? = null
     private var activeRecording: Recording? = null
     private var currentOutputFile: File? = null
@@ -74,6 +80,8 @@ class CameraRecordingManager(
         previewView: PreviewView,
         onCameraReady: () -> Unit = {}
     ) {
+        boundLifecycleOwner = lifecycleOwner
+        boundPreviewView = previewView
         val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
         cameraProviderFuture.addListener({
             try {
@@ -97,6 +105,19 @@ class CameraRecordingManager(
             val preview = Preview.Builder().build().also {
                 it.surfaceProvider = previewView.surfaceProvider
             }
+            val analysis = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also { it.setAnalyzer(ContextCompat.getMainExecutor(context), avatarEffect.analyzer) }
+
+            fun bindGroup(selector: CameraSelector, useCases: List<UseCase>) {
+                val group = UseCaseGroup.Builder().apply {
+                    useCases.forEach { addUseCase(it) }
+                    addEffect(avatarEffect.overlay)
+                    previewView.viewPort?.let(::setViewPort)
+                }.build()
+                provider.bindToLifecycle(lifecycleOwner, selector, group)
+            }
 
             var selector = CameraSelector.Builder()
                 .requireLensFacing(_currentLensFacing.value)
@@ -117,6 +138,7 @@ class CameraRecordingManager(
             }
 
             var canRecordVideo = false
+            var captureForFallback: VideoCapture<Recorder>? = null
             try {
                 val cameraInfo = provider.getCameraInfo(selector)
                 val supportedQualities = QualitySelector.getSupportedQualities(cameraInfo)
@@ -130,17 +152,24 @@ class CameraRecordingManager(
                         .build()
 
                     val capture = VideoCapture.withOutput(recorder)
-                    provider.bindToLifecycle(
-                        lifecycleOwner,
-                        selector,
-                        preview,
-                        capture
-                    )
+                    captureForFallback = capture
+                    bindGroup(selector, listOf(preview, analysis, capture))
                     videoCapture = capture
                     canRecordVideo = true
                 }
             } catch (e: Throwable) {
                 Log.w(tag, "VideoCapture not supported on this virtual/emulator camera: ${e.message}")
+                provider.unbindAll()
+                captureForFallback?.let { capture ->
+                    try {
+                        provider.bindToLifecycle(lifecycleOwner, selector, preview, capture)
+                        videoCapture = capture
+                        canRecordVideo = true
+                        Log.i(tag, "Bound preview and recording without avatar overlay fallback")
+                    } catch (fallbackError: Throwable) {
+                        Log.w(tag, "Recording fallback could not bind", fallbackError)
+                    }
+                }
             }
 
             if (!canRecordVideo) {
@@ -148,17 +177,23 @@ class CameraRecordingManager(
                 // bind Preview alone so preview is 100% stable and error-free!
                 videoCapture = null
                 provider.unbindAll()
-                provider.bindToLifecycle(
-                    lifecycleOwner,
-                    selector,
-                    preview
-                )
+                try {
+                    bindGroup(selector, listOf(preview, analysis))
+                } catch (effectError: Throwable) {
+                    Log.w(tag, "Avatar overlay unavailable; binding preview only", effectError)
+                    provider.unbindAll()
+                    provider.bindToLifecycle(lifecycleOwner, selector, preview)
+                }
                 Log.i(tag, "Bound preview successfully (preview-only/simulation fallback mode)")
             }
         } catch (e: Exception) {
             Log.e(tag, "Error rebinding camera", e)
             _recordingState.value = StudioRecordingState.Error("Camera unavailable on this device or emulator")
         }
+    }
+
+    fun selectAvatar(style: AvatarStyle) {
+        avatarEffect.select(style)
     }
 
     fun toggleCamera(lifecycleOwner: LifecycleOwner, previewView: PreviewView) {
@@ -169,6 +204,9 @@ class CameraRecordingManager(
             CameraSelector.LENS_FACING_FRONT
         }
         rebindCameraUseCases(lifecycleOwner, previewView)
+                previewView.post {
+                    if (_isCameraReady.value) rebindCameraUseCases(lifecycleOwner, previewView)
+                }
     }
 
     fun startCountdownAndRecord(
@@ -379,5 +417,6 @@ class CameraRecordingManager(
         activeRecording?.stop()
         activeRecording = null
         cameraProvider?.unbindAll()
+        avatarEffect.close()
     }
 }

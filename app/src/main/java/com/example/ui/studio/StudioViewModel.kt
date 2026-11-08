@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.camera.CameraRecordingManager
+import com.example.camera.AvatarStyle
 import com.example.camera.StudioRecordingState
 import com.example.data.db.AppDatabase
 import com.example.data.model.Recording
@@ -57,6 +58,21 @@ class StudioViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _showFilterPicker = MutableStateFlow(false)
     val showFilterPicker: StateFlow<Boolean> = _showFilterPicker.asStateFlow()
+
+    private val _selectedAvatar = MutableStateFlow(AvatarStyle.OFF)
+    val selectedAvatar: StateFlow<AvatarStyle> = _selectedAvatar.asStateFlow()
+
+    private val _showAvatarPicker = MutableStateFlow(false)
+    val showAvatarPicker: StateFlow<Boolean> = _showAvatarPicker.asStateFlow()
+
+    fun selectAvatar(style: AvatarStyle) {
+        _selectedAvatar.value = style
+        cameraManager.selectAvatar(style)
+    }
+
+    fun toggleAvatarPicker(show: Boolean) {
+        _showAvatarPicker.value = show
+    }
 
     private val _makeupIntensity = MutableStateFlow(0.85f)
     val makeupIntensity: StateFlow<Float> = _makeupIntensity.asStateFlow()

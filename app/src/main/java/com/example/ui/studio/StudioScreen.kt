@@ -109,6 +109,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.withSaveLayer
 import com.example.camera.ShortFormPlatformLimit
+import com.example.camera.AvatarStyle
 import com.example.camera.StudioRecordingState
 import com.example.filter.VideoFilter
 import com.example.filter.VideoFilterType
@@ -164,6 +165,8 @@ fun StudioScreen(
     val lastSaved by viewModel.lastSavedRecording.collectAsState()
     val selectedFilter by viewModel.selectedFilter.collectAsState()
     val showFilterPicker by viewModel.showFilterPicker.collectAsState()
+    val selectedAvatar by viewModel.selectedAvatar.collectAsState()
+    val showAvatarPicker by viewModel.showAvatarPicker.collectAsState()
     val selectedPlatformLimit by viewModel.selectedPlatformLimit.collectAsState()
     val autoStopOnLimit by viewModel.autoStopOnLimit.collectAsState()
     var showUploadDialog by remember { mutableStateOf(false) }
@@ -444,9 +447,21 @@ fun StudioScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                IconButton(
+                    onClick = { viewModel.toggleAvatarPicker(!showAvatarPicker); viewModel.toggleFilterPicker(false) },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .scaleOnPress(0.96f)
+                        .background(if (selectedAvatar != AvatarStyle.OFF) Color(0xFF9C7BFF).copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.65f))
+                        .testTag("toggle_avatar_camera_button")
+                ) {
+                    Text(text = if (selectedAvatar == AvatarStyle.OFF) "👤" else selectedAvatar.emoji, fontSize = 18.sp)
+                }
+
                 // Real-time Filters button
                 IconButton(
-                    onClick = { viewModel.toggleFilterPicker(!showFilterPicker) },
+                    onClick = { viewModel.toggleFilterPicker(!showFilterPicker); viewModel.toggleAvatarPicker(false) },
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -529,6 +544,46 @@ fun StudioScreen(
             }
         }
 
+        AnimatedVisibility(
+            visible = showAvatarPicker,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = statusBarPadding + 52.dp, start = 14.dp, end = 14.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Black.copy(alpha = 0.88f),
+                border = androidx.compose.foundation.BorderStroke(1.dp, StudioBorder),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AvatarStyle.entries.forEach { avatar ->
+                        val selected = selectedAvatar == avatar
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = if (selected) Color(0xFF9C7BFF).copy(alpha = 0.35f) else Color(0xFF1E293B),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (selected) Color(0xFFB9A2FF) else Color.Transparent),
+                            modifier = Modifier.clickable { viewModel.selectAvatar(avatar) }.testTag("avatar_style_${avatar.name.lowercase()}")
+                        ) {
+                            Text(
+                                text = "${avatar.emoji} ${avatar.label}",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Real-Time Filter Selector Bar (Floating below top bar)
         AnimatedVisibility(
             visible = showFilterPicker,
@@ -582,7 +637,7 @@ fun StudioScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = statusBarPadding + if (showFilterPicker) 104.dp else 48.dp)
+                .padding(top = statusBarPadding + if (showFilterPicker || showAvatarPicker) 104.dp else 48.dp)
         ) {
             RecordingCountdownOverlay(
                 recordingState = recordingState,
@@ -608,7 +663,7 @@ fun StudioScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
-                    top = statusBarPadding + if (showFilterPicker) 152.dp else if (recordingState is StudioRecordingState.RecordingInProgress && selectedPlatformLimit.isLimited) 116.dp else 90.dp
+                    top = statusBarPadding + if (showFilterPicker || showAvatarPicker) 152.dp else if (recordingState is StudioRecordingState.RecordingInProgress && selectedPlatformLimit.isLimited) 116.dp else 90.dp
                 )
         ) {
             TeleprompterOverlay(
