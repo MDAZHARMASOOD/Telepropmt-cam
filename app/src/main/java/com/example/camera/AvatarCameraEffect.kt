@@ -8,6 +8,7 @@ import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import androidx.camera.core.CameraEffect
+import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.effects.OverlayEffect
@@ -59,6 +60,7 @@ class AvatarCameraEffect {
         if (style == AvatarStyle.OFF) latestFace.set(null)
     }
 
+    @OptIn(ExperimentalGetImage::class)
     private fun analyze(proxy: ImageProxy) {
         val mediaImage = proxy.image
         if (mediaImage == null || selectedStyle.get() == AvatarStyle.OFF) {
