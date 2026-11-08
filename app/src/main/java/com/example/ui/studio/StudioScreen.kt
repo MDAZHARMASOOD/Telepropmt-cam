@@ -668,8 +668,8 @@ fun StudioScreen(
         ) {
             TeleprompterOverlay(
                 config = config,
-                scriptTitle = selectedScript?.title ?: if (freestyleMode) "Freestyle Prompter" else "Choose a script",
-                scriptText = selectedScript?.content ?: if (freestyleMode) "Freestyle mode · recording without a script." else "Choose a script before recording, or create or upload one from the script picker.",
+                scriptTitle = selectedScript?.title.orEmpty(),
+                scriptText = selectedScript?.content.orEmpty(),
                 onConfigChange = { viewModel.updateTeleprompterConfig(it) },
                 onOpenSettings = { viewModel.toggleSettingsSheet(true) }
             )
@@ -938,7 +938,7 @@ fun StudioScreen(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = selectedScript?.title ?: if (freestyleMode) "Freestyle · No Script" else "Choose a Script",
+                            text = selectedScript?.title.orEmpty(),
                             color = TextPrimary,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,

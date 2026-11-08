@@ -137,7 +137,7 @@ fun TeleprompterOverlay(
                 }
         ) {
             Text(
-                text = scriptText.ifBlank { "Tap anywhere to select a script or adjust prompter speed & recording settings." },
+                text = scriptText,
                 color = Color.White,
                 fontSize = config.fontSizeSp.sp,
                 lineHeight = (config.fontSizeSp * lineHeightMultiplier).sp,
